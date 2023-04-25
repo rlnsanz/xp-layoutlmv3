@@ -1,11 +1,13 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils import data as torchdata
-from torch.autograd import Variable
+import numpy as np
 
-from transformers import BertTokenizer, BertForPreTraining
-from datasets import load_dataset, DatasetDict, Dataset
+from transformers import AutoProcessor, LayoutLMv3ForTokenClassification
+from datasets import load_dataset
+from datasets.features import ClassLabel
+from datasets import Features, Sequence, ClassLabel, Value, Array2D, Array3D
+import evaluate
 
 import flor
 from flor import MTK as Flor
@@ -15,46 +17,153 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Hyper-parameters
 num_epochs = 5
-batch_size = 6
-learning_rate = 0.001
+batch_size = 4
+learning_rate = 1e-5
 max_length = 480
 
 # Data loader
-data = load_dataset("wikipedia", "20220301.en")
-assert isinstance(data, DatasetDict)
-assert set(data.keys()) == {
-    "train",
-}  # type: ignore
-assert isinstance(data["train"], Dataset)
-assert set(data["train"].features) == {"id", "url", "title", "text"}
+dataset = load_dataset("nielsr/funsd-layoutlmv3")
+print(str(dataset))
 
-feature_extractor = BertTokenizer.from_pretrained("bert-base-uncased")
-model = BertForPreTraining.from_pretrained("bert-base-uncased").to(device)  # type: ignore
+features = dataset["train"].features  # type: ignore
+column_names = dataset["train"].column_names  # type: ignore
+image_column_name = "image"
+text_column_name = "tokens"
+boxes_column_name = "bboxes"
+label_column_name = "ner_tags"
+
+# In the event the labels are not a `Sequence[ClassLabel]`, we will need to go through the dataset to get the
+# unique labels.
+def get_label_list(labels):
+    unique_labels = set()
+    for label in labels:
+        unique_labels = unique_labels | set(label)
+    label_list = list(unique_labels)
+    label_list.sort()
+    return label_list
+
+
+if isinstance(features[label_column_name].feature, ClassLabel):
+    label_list = features[label_column_name].feature.names
+    # No need to convert the labels since they are already ints.
+    id2label = {k: v for k, v in enumerate(label_list)}
+    label2id = {v: k for k, v in enumerate(label_list)}
+else:
+    label_list = get_label_list(dataset["train"][label_column_name])  # type: ignore
+    id2label = {k: v for k, v in enumerate(label_list)}
+    label2id = {v: k for k, v in enumerate(label_list)}
+num_labels = len(label_list)
+
+processor = AutoProcessor.from_pretrained("microsoft/layoutlmv3-base", apply_ocr=False)
+model = LayoutLMv3ForTokenClassification.from_pretrained(
+    "microsoft/layoutlmv3-base", id2label=id2label, label2id=label2id
+)
+assert isinstance(model, LayoutLMv3ForTokenClassification)
+model.to(device)  # type: ignore
 Flor.checkpoints(model)
 
+"""
+# def my_collate(batch):
+#     original_text = []
+#     for i, record in enumerate(batch):
+#         original_text.append(record["text"])
+#     new_features = feature_extractor(
+#         original_text,
+#         return_tensors="pt",
+#         padding="max_length",
+#         max_length=max_length,
+#         truncation=True,
+#     )
 
-def my_collate(batch):
-    original_text = []
-    for i, record in enumerate(batch):
-        original_text.append(record["text"])
-    new_features = feature_extractor(
-        original_text,
-        return_tensors="pt",
-        padding="max_length",
-        max_length=max_length,
+#     # torchdata.default_collate(new_features)
+#     return new_features
+"""
+
+
+def prepare_examples(examples):
+    images = examples[image_column_name]
+    words = examples[text_column_name]
+    boxes = examples[boxes_column_name]
+    word_labels = examples[label_column_name]
+
+    encoding = processor(
+        images,
+        words,
+        boxes=boxes,
+        word_labels=word_labels,
         truncation=True,
+        padding="max_length",
     )
 
-    # torchdata.default_collate(new_features)
-    return new_features
+    return encoding
 
 
-train_loader = torchdata.DataLoader(dataset=data["train"].with_format("torch"), batch_size=batch_size, shuffle=True, collate_fn=my_collate)  # type: ignore
+features = Features(
+    {
+        "pixel_values": Array3D(dtype="float32", shape=(3, 224, 224)),
+        "input_ids": Sequence(feature=Value(dtype="int64")),
+        "attention_mask": Sequence(Value(dtype="int64")),
+        "bbox": Array2D(dtype="int64", shape=(512, 4)),
+        "labels": Sequence(feature=Value(dtype="int64")),
+    }  # type: ignore
+)
+
+train_dataset = dataset["train"].map(  # type: ignore
+    prepare_examples,
+    batched=True,
+    remove_columns=column_names,
+    features=features,
+)
+train_dataset.set_format("torch")
+
+eval_dataset = dataset["test"].map(  # type: ignore
+    prepare_examples,
+    batched=True,
+    remove_columns=column_names,
+    features=features,
+)
+eval_dataset.set_format("torch")
+
+
+train_loader = torchdata.DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, collate_fn=torchdata.default_collate)  # type: ignore
+test_loader = torchdata.DataLoader(
+    dataset=eval_dataset,  # type: ignore
+    batch_size=batch_size,
+    shuffle=False,
+    collate_fn=torchdata.default_collate,
+)
+
 
 # Loss and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)  # type: ignore
 Flor.checkpoints(optimizer)
+
+metric = evaluate.load("seqeval")
+
+
+def compute_metrics(p):
+    predictions, labels = p
+    predictions = np.argmax(predictions, axis=2)
+
+    # Remove ignored index (special tokens)
+    true_predictions = [
+        [label_list[p] for (p, l) in zip(prediction, label) if l != -100]
+        for prediction, label in zip(predictions, labels)
+    ]
+    true_labels = [
+        [label_list[l] for (p, l) in zip(prediction, label) if l != -100]
+        for prediction, label in zip(predictions, labels)
+    ]
+
+    results = metric.compute(predictions=true_predictions, references=true_labels)
+    assert results is not None
+    return {
+        "precision": results["overall_precision"],
+        "recall": results["overall_recall"],
+        "f1": results["overall_f1"],
+        "accuracy": results["overall_accuracy"],
+    }
+
 
 # Train the model
 total_step = len(train_loader)
