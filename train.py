@@ -177,17 +177,7 @@ for epoch in Flor.loop(range(num_epochs)):
 
         # Forward pass
         outputs = model(**batch)
-        loss = criterion(
-            outputs.prediction_logits.reshape((batch_size, -1, max_length)),
-            batch["input_ids"],
-        )
-        # loss = Variable(
-        #     criterion(
-        #         outputs.prediction_logits.argmax(2).float(),
-        #         batch["input_ids"].float(),
-        #     ),
-        #     requires_grad=True,
-        # )
+        loss = outputs.loss
 
         # Backward and optimize
         optimizer.zero_grad()
