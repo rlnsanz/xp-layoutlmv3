@@ -17,7 +17,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Hyper-parameters
 num_epochs = 5
-batch_size = 4
+batch_size = 2
 learning_rate = 1e-5
 max_length = 480
 
@@ -172,8 +172,8 @@ for epoch in Flor.loop(range(num_epochs)):
     model.train()
     for i, batch in Flor.loop(enumerate(train_loader)):
         # Move tensors to the configured device
-        # text = feature_extractor.decode(each) for each in batch["input_ids"]
-        batch = batch.to(device)
+        for k in batch:
+            batch[k] = batch[k].to(device)
 
         # Forward pass
         outputs = model(**batch)
