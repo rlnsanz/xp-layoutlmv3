@@ -184,15 +184,11 @@ for epoch in Flor.loop(range(num_epochs)):
         loss.backward()
         optimizer.step()
 
-        if i % 100 == 0:
-            print(
-                "Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}".format(
-                    epoch + 1, num_epochs, i, num_steps, flor.log("loss", loss.item())
-                )
+        print(
+            "Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}".format(
+                epoch + 1, num_epochs, i, total_step, flor.log("loss", loss.item())
             )
-            if i == num_steps:
-                # bootleg sampling
-                break
+        )
 
     print("Model Validate")
 
