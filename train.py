@@ -17,9 +17,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Hyper-parameters
 num_epochs = 5
-batch_size = 2
+batch_size = 4
 learning_rate = 1e-5
-max_length = 480
 
 # Data loader
 dataset = load_dataset("nielsr/funsd-layoutlmv3")
@@ -61,23 +60,6 @@ model = LayoutLMv3ForTokenClassification.from_pretrained(
 assert isinstance(model, LayoutLMv3ForTokenClassification)
 model.to(device)  # type: ignore
 Flor.checkpoints(model)
-
-"""
-# def my_collate(batch):
-#     original_text = []
-#     for i, record in enumerate(batch):
-#         original_text.append(record["text"])
-#     new_features = feature_extractor(
-#         original_text,
-#         return_tensors="pt",
-#         padding="max_length",
-#         max_length=max_length,
-#         truncation=True,
-#     )
-
-#     # torchdata.default_collate(new_features)
-#     return new_features
-"""
 
 
 def prepare_examples(examples):
