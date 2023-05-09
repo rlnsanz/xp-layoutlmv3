@@ -178,7 +178,7 @@ for epoch in Flor.loop(range(num_epochs)):
 # In test phase, we don't need to compute gradients (for memory efficiency)
 print("Model TEST")
 model.eval()
-with torch.no_grad(): 
+with torch.no_grad():
     preds = []
     labels = []
     for i, batch in enumerate(test_loader):
@@ -188,17 +188,11 @@ with torch.no_grad():
         # Forward pass
         outputs = model(**batch)
         preds.append(outputs.logits)
-        labels.append(batch['labels'])
+        labels.append(batch["labels"])
 
-        # compute metrics 
+        # compute metrics
     p = np.concatenate(preds)
     l = np.concatenate(labels)
     result = compute_metrics((p, l))
 
     print(result)
-
-        # print(
-        #     "Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}".format(
-        #         epoch + 1, num_epochs, i, total_step, flor.log("loss", loss.item())
-        #     )
-        # )
