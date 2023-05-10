@@ -187,8 +187,8 @@ with torch.no_grad():
 
         # Forward pass
         outputs = model(**batch)
-        preds.append(outputs.logits)
-        labels.append(batch["labels"])
+        preds.append(outputs.logits.cpu())
+        labels.append(batch["labels"].cpu())
 
         # compute metrics
     p = np.concatenate(preds)
