@@ -31,6 +31,7 @@ text_column_name = "tokens"
 boxes_column_name = "bboxes"
 label_column_name = "ner_tags"
 
+
 # In the event the labels are not a `Sequence[ClassLabel]`, we will need to go through the dataset to get the
 # unique labels.
 def get_label_list(labels):
