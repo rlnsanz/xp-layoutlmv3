@@ -1,11 +1,11 @@
 {
     "NAME": "BATCH",
-    "TSTAMP": "2023-07-05T19:45:43.json",
+    "TSTAMP": "2023-07-05T19:46:52.json",
     "epochs": 5,
     "PROJID": "xp-layoutlmv3_flor.shadow.sigmod",
     "EPOCHS": 5,
     "CLI": {
         "batch_size": "2",
-        "lr": "0.0001"
+        "lr": "0.0002"
     }
 }
