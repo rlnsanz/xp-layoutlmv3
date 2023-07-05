@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.utils import data as torchdata
 import numpy as np
 
-from transformers import AutoProcessor, LayoutLMv3ForTokenClassification
+from transformers import AutoProcessor, LayoutLMv3ForTokenClassification  # type: ignore
 from datasets import load_dataset
 from datasets.features import ClassLabel
 from datasets import Features, Sequence, ClassLabel, Value, Array2D, Array3D
