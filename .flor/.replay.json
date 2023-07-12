@@ -1,12 +1,12 @@
 {
     "NAME": "BATCH",
-    "TSTAMP": "2023-07-12T01:00:58.json",
+    "TSTAMP": "2023-07-12T01:01:13.json",
     "device": "cuda",
     "PROJID": "xp-layoutlmv3_flor.shadow.sigmod2",
-    "EPOCHS": 1,
+    "EPOCHS": 10,
     "CLI": {
         "epochs": "10",
-        "batch_size": "32",
-        "lr": "1e-05"
+        "batch_size": "4",
+        "lr": "0.0005"
     }
 }
