@@ -174,6 +174,7 @@ for epoch in Flor.loop(range(num_epochs)):
         )
 
     print("Model Validate", epoch + 1)
+    flor.log("dp", epoch + 1)
 
 # Test the model
 # In test phase, we don't need to compute gradients (for memory efficiency)
@@ -197,3 +198,4 @@ with torch.no_grad():
     result = compute_metrics((p, l))
 
     print(result)
+    flor.log("str_res", str(result))
