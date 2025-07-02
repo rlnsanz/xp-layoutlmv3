@@ -25,6 +25,10 @@ learning_rate = flor.arg("lr", 1e-5)
 dataset = load_dataset("nielsr/funsd-layoutlmv3")
 print(str(dataset))
 
+import sys
+
+sys.exit(0)
+
 features = dataset["train"].features  # type: ignore
 column_names = dataset["train"].column_names  # type: ignore
 image_column_name = "image"
