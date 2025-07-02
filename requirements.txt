@@ -1,1 +1,7 @@
+torch
+numpy
 seqeval
+transformers
+datasets
+evaluate
+flordb>=3.4.6

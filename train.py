@@ -10,7 +10,6 @@ from datasets import Features, Sequence, ClassLabel, Value, Array2D, Array3D
 import evaluate
 
 import flor
-from flor import MTK as Flor
 
 # Device configuration
 device = torch.device(
