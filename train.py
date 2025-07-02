@@ -13,7 +13,9 @@ import flor
 from flor import MTK as Flor
 
 # Device configuration
-device = torch.device(flor.arg("device", "cuda" if torch.cuda.is_available() else "cpu"))
+device = torch.device(
+    flor.arg("device", "cuda" if torch.cuda.is_available() else "cpu")
+)
 
 # Hyper-parameters
 num_epochs = flor.arg("epochs", default=5)
