@@ -2,7 +2,7 @@ ipywidgets
 torch
 numpy
 seqeval
-transformers
+transformers[torch]
 datasets
 evaluate
 flordb>=3.4.6
