@@ -1,3 +1,4 @@
+ipywidgets
 torch
 numpy
 seqeval
