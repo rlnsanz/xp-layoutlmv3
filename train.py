@@ -25,12 +25,11 @@ learning_rate = flor.arg("lr", 1e-5)
 dataset = load_dataset("nielsr/funsd-layoutlmv3")
 print(str(dataset))
 
-import sys
-
-sys.exit(0)
 
 features = dataset["train"].features  # type: ignore
+print("Features: ", features)
 column_names = dataset["train"].column_names  # type: ignore
+print("Column Names:", column_names)
 image_column_name = "image"
 text_column_name = "tokens"
 boxes_column_name = "bboxes"
@@ -64,8 +63,9 @@ model = LayoutLMv3ForTokenClassification.from_pretrained(
     "microsoft/layoutlmv3-base", id2label=id2label, label2id=label2id
 )
 assert isinstance(model, LayoutLMv3ForTokenClassification)
-model.to(device)  # type: ignore
-Flor.checkpoints(model)
+model = model.to(device)  # type: ignore
+
+print(model)
 
 
 def prepare_examples(examples):
@@ -124,7 +124,6 @@ test_loader = torchdata.DataLoader(
 
 # Loss and optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)  # type: ignore
-Flor.checkpoints(optimizer)
 
 metric = evaluate.load("seqeval")
 
@@ -156,9 +155,9 @@ def compute_metrics(p):
 # Train the model
 total_step = len(train_loader)
 num_steps = 1000
-for epoch in Flor.loop(range(num_epochs)):
+for epoch in flor.loop("epoch", range(num_epochs)):
     model.train()
-    for i, batch in Flor.loop(enumerate(train_loader)):
+    for i, batch in flor.loop("step", enumerate(train_loader)):
         # Move tensors to the configured device
         for k in batch:
             batch[k] = batch[k].to(device)
@@ -178,7 +177,30 @@ for epoch in Flor.loop(range(num_epochs)):
             )
         )
 
-    print("Model Validate", epoch + 1)
+    # Validate the model
+    print("Model VALIDATE")
+    model.eval()
+    with torch.no_grad():
+        preds = []
+        labels = []
+        # Valudate on 15% subsample of training data
+        for i, batch in enumerate(train_loader):
+            if i >= num_steps:
+                break
+            for k in batch:
+                batch[k] = batch[k].to(device)
+
+            # Forward pass
+            outputs = model(**batch)
+            preds.append(outputs.logits.cpu())
+            labels.append(batch["labels"].cpu())
+
+        # compute metrics
+        p = np.concatenate(preds)
+        l = np.concatenate(labels)
+        result = compute_metrics((p, l))
+        print("Validation:\n", result)
+
 
 # Test the model
 # In test phase, we don't need to compute gradients (for memory efficiency)
