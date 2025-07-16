@@ -145,61 +145,61 @@ def compute_metrics(p):
     results = metric.compute(predictions=true_predictions, references=true_labels)
     assert results is not None
     return {
-        "precision": results["overall_precision"],
-        "recall": results["overall_recall"],
-        "f1": results["overall_f1"],
-        "accuracy": results["overall_accuracy"],
+        "precision": flor.log("precision", results["overall_precision"]),
+        "recall": flor.log("recall", results["overall_recall"]),
+        "f1": flor.log("f1", results["overall_f1"]),
+        "accuracy": flor.log("accuracy", results["overall_accuracy"]),
     }
 
 
 # Train the model
 total_step = len(train_loader)
 num_steps = 1000
-for epoch in flor.loop("epoch", range(num_epochs)):
-    model.train()
-    for i, batch in flor.loop("step", enumerate(train_loader)):
-        # Move tensors to the configured device
-        for k in batch:
-            batch[k] = batch[k].to(device)
-
-        # Forward pass
-        outputs = model(**batch)
-        loss = outputs.loss
-
-        # Backward and optimize
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        print(
-            "Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}".format(
-                epoch + 1, num_epochs, i, total_step, flor.log("loss", loss.item())
-            )
-        )
-
-    # Validate the model
-    print("Model VALIDATE")
-    model.eval()
-    with torch.no_grad():
-        preds = []
-        labels = []
-        # Valudate on 15% subsample of training data
-        for i, batch in enumerate(train_loader):
-            if i >= num_steps:
-                break
+with flor.checkpointing(model=model, optimizer=optimizer):
+    for epoch in flor.loop("epoch", range(num_epochs)):
+        model.train()
+        for i, batch in flor.loop("step", enumerate(train_loader)):
+            # Move tensors to the configured device
             for k in batch:
                 batch[k] = batch[k].to(device)
 
             # Forward pass
             outputs = model(**batch)
-            preds.append(outputs.logits.cpu())
-            labels.append(batch["labels"].cpu())
+            loss = outputs.loss
 
-        # compute metrics
-        p = np.concatenate(preds)
-        l = np.concatenate(labels)
-        result = compute_metrics((p, l))
-        print("Validation:\n", result)
+            # Backward and optimize
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            print(
+                "Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}".format(
+                    epoch + 1, num_epochs, i, total_step, flor.log("loss", loss.item())
+                )
+            )
+
+        # Validate the model
+        print("Model VALIDATE")
+        model.eval()
+        with torch.no_grad():
+            preds = []
+            labels = []
+            # Valudate on 15% subsample of training data
+            for i, batch in enumerate(train_loader):
+                if i >= num_steps:
+                    break
+                for k in batch:
+                    batch[k] = batch[k].to(device)
+
+                # Forward pass
+                outputs = model(**batch)
+                preds.append(outputs.logits.cpu())
+                labels.append(batch["labels"].cpu())
+
+            # compute metrics
+            p = np.concatenate(preds)
+            l = np.concatenate(labels)
+            result = compute_metrics((p, l))
 
 
 # Test the model
